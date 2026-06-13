@@ -86,11 +86,14 @@
       # mtools is portable C (FAT image I/O over plain files); macOS builds and
       # runs. charsetConv.c uses iconv — handled centrally by mkStandaloneFlake's
       # withDarwinIconv (the build flows through `stripped`). NOT linuxOnly.
-      # Smoke: the canonical `mtools` is itself an applet, so `mtools --version`
-      # reaches mtools' own `main`, which prints "<name> (GNU mtools) <ver>" and
-      # exits 0 before reading any config (a non-empty arg, so macOS bash 3.2's
-      # empty-array `set -u` trap doesn't fire on the darwin smoke).
-      smoke = [ "--version" ];
+      # Smoke: unlike the other multicalls, mtools' canonical name IS an applet,
+      # so argv[0]-based dispatch matters. CI's Windows smoke runs the binary
+      # renamed to `smoke.exe`, so argv[0] is neither "mtools" nor an applet, and
+      # a bare `--version` would hit the dispatcher's "select a program" error.
+      # Select the applet explicitly with --unpin-program (rename-proof, fires
+      # before the canonical path on every platform); mtools' own `main` then
+      # prints "<name> (GNU mtools) <ver>" and exits 0 before reading any config.
+      smoke = [ "--unpin-program=mtools" "--version" ];
       smokePattern = "GNU mtools";
       build = pkgs:
         lib.cppRenameMulticall (spec // {
