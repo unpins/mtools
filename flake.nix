@@ -11,14 +11,21 @@
   # mtools is ALREADY a native argv[0] multicall: one `mtools` binary that
   # dispatches mattrib/mcopy/mformat/… on its own basename. Upstream ships the
   # m* names as symlinks to it. The ONE separate program is `mkmanifest` (its
-  # own main, sharing misc.o/missFuncs.o/patchlevel.o with mtools). We fold
-  # mkmanifest into the `mtools` binary with the cpp-rename recipe
-  # (lib.cppRenameMulticall): mtools stays primary (its internal dispatch still
-  # routes the m* aliases via the preserved argv[0]), mkmanifest becomes a
-  # second applet, and the duplicated misc/missFuncs/patchlevel objects are
-  # namespaced apart so the two mains can't collide. Upstream's shell helpers
-  # (amuFormat.sh, mcheck, mcomp, mxtar, tgz, uz, lz) are dropped — single
-  # binary, same policy as gzip's z* scripts.
+  # own main, sharing misc.o/missFuncs.o/patchlevel.o with mtools).
+  #
+  # Linux: build via the unpin-llvm engine + emit a bitcode multicall module.
+  # The engine compiles plain pkgsStatic.mtools to bitcode and the standalone
+  # self-folds the two real linked programs (`mtools`, with the m* names as
+  # argv[0] aliases, and `mkmanifest`) into one `mtools` binary. No cpp-rename
+  # fold and no patchedBase needed: the chain-LTO link namespaces the shared
+  # objects, and the m* dispatch rides on mtools' own basename handling.
+  #
+  # darwin + Windows (cosmo): keep the cpp-rename fold (lib.cppRenameMulticall +
+  # ./cosmo.nix) UNCHANGED — mtools stays primary, mkmanifest becomes a second
+  # applet, and the duplicated misc/missFuncs/patchlevel objects are namespaced
+  # apart so the two mains can't collide. Upstream's shell helpers (amuFormat.sh,
+  # mcheck, mcomp, mxtar, tgz, uz, lz) are dropped — single binary, same policy
+  # as gzip's z* scripts.
   outputs = { self, unpins-lib }:
     let
       lib = unpins-lib.lib;
@@ -95,12 +102,28 @@
       # prints "<name> (GNU mtools) <ver>" and exits 0 before reading any config.
       smoke = [ "--unpin-program=mtools" "--version" ];
       smokePattern = "GNU mtools";
+      # Linux engine path: real linked programs are `mtools` (carrying all the
+      # m* names as argv[0] aliases — mtools' own main dispatches on basename)
+      # and `mkmanifest` (its own main). defaultProgram routes a bare `mtools`
+      # invocation to the mtools applet.
+      engine = "unpin-llvm";
+      multicall = {
+        programs = [
+          { name = "mtools"; aliases = mLinks; }
+          { name = "mkmanifest"; }
+        ];
+        defaultProgram = "mtools";
+      };
       build = pkgs:
-        lib.cppRenameMulticall (spec // {
-          inherit pkgs;
-          basePkg = patchedBase pkgs.pkgsStatic.mtools;
-          isTargetDarwin = pkgs.pkgsStatic.stdenv.hostPlatform.isDarwin;
-        });
+        if pkgs.stdenv.hostPlatform.isLinux then
+          # Engine path: plain pkgsStatic.mtools; no cpp-rename, no patchedBase.
+          pkgs.pkgsStatic.mtools
+        else
+          lib.cppRenameMulticall (spec // {
+            inherit pkgs;
+            basePkg = patchedBase pkgs.pkgsStatic.mtools;
+            isTargetDarwin = pkgs.pkgsStatic.stdenv.hostPlatform.isDarwin;
+          });
       # Windows via cosmocc (POSIX layer for file I/O + termios + iconv), same
       # fold. See ./cosmo.nix.
       windowsBuild = import ./cosmo.nix { inherit unpins-lib spec patchedBase; };
