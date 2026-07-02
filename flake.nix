@@ -117,7 +117,17 @@
       build = pkgs:
         if pkgs.stdenv.hostPlatform.isLinux then
           # Engine path: plain pkgsStatic.mtools; no cpp-rename, no patchedBase.
-          pkgs.pkgsStatic.mtools
+          # Drop floppyd's man page: the X11 floppy daemon isn't built in a
+          # static/no-X11 build (FLOPPYD_IO_OBJ is empty), so we don't ship it —
+          # withMan would otherwise embed it. The cpp-rename path's curated
+          # `extraInstall` already excludes floppyd; match that here.
+          pkgs.pkgsStatic.mtools.overrideAttrs (o: {
+            postInstall = (o.postInstall or "") + ''
+              for out in $outputs; do
+                rm -f "''${!out}"/share/man/man1/floppyd*.1*
+              done
+            '';
+          })
         else
           lib.cppRenameMulticall (spec // {
             inherit pkgs;
