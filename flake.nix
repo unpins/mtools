@@ -104,15 +104,14 @@
       smokePattern = "GNU mtools";
       # Linux engine path: real linked programs are `mtools` (carrying all the
       # m* names as argv[0] aliases — mtools' own main dispatches on basename)
-      # and `mkmanifest` (its own main). defaultProgram routes a bare `mtools`
-      # invocation to the mtools applet.
+      # and `mkmanifest` (its own main). `mtools` is itself a program, so a bare
+      # invocation runs it.
       engine = "unpin-llvm";
       multicall = {
         programs = [
           { name = "mtools"; aliases = mLinks; }
           { name = "mkmanifest"; }
         ];
-        defaultProgram = "mtools";
       };
       build = pkgs:
         if pkgs.stdenv.hostPlatform.isLinux then
