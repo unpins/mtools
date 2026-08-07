@@ -113,26 +113,27 @@
           { name = "mkmanifest"; }
         ];
       };
+      # Engine path for BOTH natives: plain pkgsStatic.mtools; no cpp-rename, no
+      # patchedBase. darwin used to take cppRenameMulticall here, from before the
+      # engine reached darwin — but darwin is an engine host now, so
+      # mkStandaloneFlake folded the cpp-rename output a SECOND time. The first
+      # fold had already renamed `main` to `mkmanifest_main`, so the module fold
+      # found no `main` for that program and bound the applet entry to the
+      # dispatcher's own `main`: invoking mkmanifest re-entered the dispatcher
+      # until the stack died (SIGSEGV, both darwin arches, shipped silently).
+      #
+      # Drop floppyd's man page: the X11 floppy daemon isn't built in a
+      # static/no-X11 build (FLOPPYD_IO_OBJ is empty), so we don't ship it —
+      # withMan would otherwise embed it. The cpp-rename path's curated
+      # `extraInstall` already excludes floppyd; match that here.
       build = pkgs:
-        if pkgs.stdenv.hostPlatform.isLinux then
-          # Engine path: plain pkgsStatic.mtools; no cpp-rename, no patchedBase.
-          # Drop floppyd's man page: the X11 floppy daemon isn't built in a
-          # static/no-X11 build (FLOPPYD_IO_OBJ is empty), so we don't ship it —
-          # withMan would otherwise embed it. The cpp-rename path's curated
-          # `extraInstall` already excludes floppyd; match that here.
-          pkgs.pkgsStatic.mtools.overrideAttrs (o: {
-            postInstall = (o.postInstall or "") + ''
-              for out in $outputs; do
-                rm -f "''${!out}"/share/man/man1/floppyd*.1*
-              done
-            '';
-          })
-        else
-          lib.cppRenameMulticall (spec // {
-            inherit pkgs;
-            basePkg = patchedBase pkgs.pkgsStatic.mtools;
-            isTargetDarwin = pkgs.pkgsStatic.stdenv.hostPlatform.isDarwin;
-          });
+        pkgs.pkgsStatic.mtools.overrideAttrs (o: {
+          postInstall = (o.postInstall or "") + ''
+            for out in $outputs; do
+              rm -f "''${!out}"/share/man/man1/floppyd*.1*
+            done
+          '';
+        });
       # Windows via cosmocc (POSIX layer for file I/O + termios + iconv), same
       # fold. See ./cosmo.nix.
       windowsBuild = import ./cosmo.nix { inherit unpins-lib spec patchedBase; };
