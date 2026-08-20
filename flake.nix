@@ -29,18 +29,29 @@
   outputs = { self, unpins-lib }:
     let
       lib = unpins-lib.lib;
+      # mtools reads SYSCONFDIR/mtools.conf at run time, and with
+      # --sysconfdir=$out/etc (the nixpkgs default) that bakes a store path the
+      # base does not even create -- so the shipped binary looks for its config
+      # in a directory that exists nowhere, and Nix counts the path as a runtime
+      # reference (a hard one on the cosmo fold, invisible on the engine path
+      # only because the base is outside that drv's input closure). /etc is
+      # where every distro puts mtools.conf and where a user would look.
+      # Nothing is installed there: upstream ships no default config.
+      atEtc = drv: drv.overrideAttrs (o: {
+        configureFlags = (o.configureFlags or [ ]) ++ [ "--sysconfdir=/etc" ];
+      });
       # signal.c does `#undef got_signal` to neutralise a (dead, commented-out)
       # debug macro in mtools.h — but that also cancels the cpp-rename header's
       # `#define got_signal mtools__got_signal`, so signal.o would define the
       # plain symbol while copyfile/fat/mainloop reference the renamed one
       # (undefined). Drop the `#undef` so the rename applies in signal.c too;
       # got_signal is mtools-only, no cross-program collision.
-      patchedBase = drv: drv.overrideAttrs (o: {
+      patchedBase = drv: atEtc (drv.overrideAttrs (o: {
         postPatch = (o.postPatch or "") + ''
           substituteInPlace signal.c \
             --replace-fail '#undef got_signal' '/* unpin: keep cpp-rename of got_signal */'
         '';
-      });
+      }));
       # The full mtools object set (Makefile.in OBJS_MTOOLS): @XDF_IO_OBJ@ is
       # always xdf_io.o; @FLOPPYD_IO_OBJ@ is empty (no X11 in a static build).
       mtoolsObjs = [
@@ -127,13 +138,13 @@
       # withMan would otherwise embed it. The cpp-rename path's curated
       # `extraInstall` already excludes floppyd; match that here.
       build = pkgs:
-        pkgs.pkgsStatic.mtools.overrideAttrs (o: {
+        atEtc (pkgs.pkgsStatic.mtools.overrideAttrs (o: {
           postInstall = (o.postInstall or "") + ''
             for out in $outputs; do
               rm -f "''${!out}"/share/man/man1/floppyd*.1*
             done
           '';
-        });
+        }));
       # Windows via cosmocc (POSIX layer for file I/O + termios + iconv), same
       # fold. See ./cosmo.nix.
       windowsBuild = import ./cosmo.nix { inherit unpins-lib spec patchedBase; };
