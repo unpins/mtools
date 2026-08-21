@@ -20,10 +20,11 @@
   # fold and no patchedBase needed: the chain-LTO link namespaces the shared
   # objects, and the m* dispatch rides on mtools' own basename handling.
   #
-  # darwin + Windows (cosmo): keep the cpp-rename fold (lib.cppRenameMulticall +
-  # ./cosmo.nix) UNCHANGED — mtools stays primary, mkmanifest becomes a second
+  # Windows (cosmo): keep the cpp-rename fold (lib.cppRenameMulticall +
+  # ./cosmo.nix) — mtools stays primary, mkmanifest becomes a second
   # applet, and the duplicated misc/missFuncs/patchlevel objects are namespaced
-  # apart so the two mains can't collide. Upstream's shell helpers (amuFormat.sh,
+  # apart so the two mains can't collide. (darwin used to be on this path too;
+  # it is not any more — see the note on the `build` attribute below.) Upstream's shell helpers (amuFormat.sh,
   # mcheck, mcomp, mxtar, tgz, uz, lz) are dropped — single binary, same policy
   # as gzip's z* scripts.
   outputs = { self, unpins-lib }:
@@ -123,6 +124,10 @@
           { name = "mtools"; aliases = mLinks; }
           { name = "mkmanifest"; }
         ];
+        # What the windows fold below dispatches, from the same `spec` that
+        # builds it — so CI checks the .exe against this instead of against
+        # itself, and a table that drifts stops being a green run.
+        windowsTable = lib.cppRenameTable spec;
       };
       # Engine path for BOTH natives: plain pkgsStatic.mtools; no cpp-rename, no
       # patchedBase. darwin used to take cppRenameMulticall here, from before the
