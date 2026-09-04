@@ -14,9 +14,9 @@ Part of the [unpins](https://unpins.org) catalog; install it with [`unpin`](http
 Run a program with [unpin](https://github.com/unpins/unpin):
 
 ```bash
-unpin mtools mformat -i disk.img -C -T 65536 ::
-unpin mtools mcopy -i disk.img hello.txt ::/
-unpin mtools mdir -i disk.img ::/
+unpin mtools --unpin-program=mformat -i disk.img -C -T 65536 ::
+unpin mtools --unpin-program=mcopy -i disk.img hello.txt ::/
+unpin mtools --unpin-program=mdir -i disk.img ::/
 ```
 
 To install the programs onto your PATH:
@@ -26,6 +26,11 @@ unpin install mtools
 ```
 
 `unpin install mtools` creates `mtools`, `mkmanifest` and every `m*` command (`mattrib`, `mcat`, `mcd`, `mcopy`, `mdel`, `mdeltree`, `mdir`, `mdoctorfat`, `mdu`, `mformat`, `minfo`, `mlabel`, `mmd`, `mmount`, `mmove`, `mpartition`, `mrd`, `mren`, `mtype`, `mtoolstest`, `mshortname`, `mshowfat`, `mbadblocks`, `mzip`). `unpin info mtools` lists every command and what it does.
+
+## Man pages
+
+One page per command is embedded — read any with `unpin man mtools <command>`,
+e.g. `unpin man mtools mcopy`.
 
 ## Build locally
 
@@ -49,7 +54,6 @@ The [Releases](https://github.com/unpins/mtools/releases) page has standalone bi
 ## Build notes
 
 - **Platforms:** Linux (x86_64, i686, ppc64le, riscv64, aarch64, armv7l), macOS (x86_64, aarch64), Windows (x86_64).
-- **Multicall:** mtools is already a single `argv[0]`-dispatch binary for the `m*` commands. The one separate program, `mkmanifest`, is folded into the same binary — on Linux by the unpin-llvm engine (per-program bitcode module), and on macOS/Windows by a source-level `main` → `<prog>_main` rename (`lib.cppRenameMulticall`). The `m*` names dispatch through mtools' own internal table. Upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …) are dropped under the single-binary policy, and the X11 `floppyd` daemon isn't built (no X11 in a static build), so its man page is excluded too.
+- **Multicall:** mtools is already a single `argv[0]`-dispatch binary for the `m*` commands. The one separate program, `mkmanifest`, is folded into the same binary — on Linux and macOS by the unpin-llvm engine (per-program bitcode module), and on Windows by a source-level `main` → `<prog>_main` rename (`lib.cppRenameMulticall`). The `m*` names dispatch through mtools' own internal table. Upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …) are dropped under the single-binary policy, and the X11 `floppyd` daemon isn't built (no X11 in a static build), so its man page is excluded too.
 - **macOS / Windows:** mtools operates on FAT *image files* (and, on Linux, block devices). `charsetConv.c`'s `iconv` use is linked statically on macOS. The Windows build uses [Cosmopolitan](https://github.com/jart/cosmopolitan), with cosmo's lowercase `privileged` attribute macro neutralized where it collides with mtools' `SimpleFile_t.privileged` field — see [`cosmo.nix`](cosmo.nix).
-- **Man pages:** the per-command pages are embedded; read with `unpin man mtools mcopy`.
 - **Tests:** mtools ships no automated self-tests (`make check` prints "No self tests included"), so there is no native suite to wire; the release smoke test runs an applet's `--version`.
