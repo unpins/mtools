@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [4.0.49-1] - 2026-09-26
+
 Initial release — `mtools` 4.0.49 as a single self-contained binary, built
 natively for Linux, macOS, and Windows.
 
