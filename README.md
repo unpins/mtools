@@ -25,7 +25,7 @@ To install the programs onto your PATH:
 unpin install mtools
 ```
 
-`unpin install mtools` creates `mtools`, `mkmanifest` and every `m*` command (`mattrib`, `mcat`, `mcd`, `mcopy`, `mdel`, `mdeltree`, `mdir`, `mdoctorfat`, `mdu`, `mformat`, `minfo`, `mlabel`, `mmd`, `mmount`, `mmove`, `mpartition`, `mrd`, `mren`, `mtype`, `mtoolstest`, `mshortname`, `mshowfat`, `mbadblocks`, `mzip`). `unpin info mtools` lists every command and what it does.
+`unpin install mtools` creates `mtools`, `mkmanifest` and every `m*` command (`mdir`, `mcopy`, `mformat`, `mdel`, …). `unpin info mtools` lists every command and what it does.
 
 ## Man pages
 
@@ -55,5 +55,5 @@ The [Releases](https://github.com/unpins/mtools/releases) page has standalone bi
 
 - **Platforms:** Linux (x86_64, i686, ppc64le, riscv64, aarch64, armv7l), macOS (x86_64, aarch64), Windows (x86_64).
 - **Not shipped:** upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …) are dropped under the single-binary policy, and the X11 `floppyd` daemon isn't built (no X11 in a static build), so its man page is excluded too.
-- **macOS / Windows:** mtools operates on FAT *image files* (and, on Linux, block devices). `charsetConv.c`'s `iconv` use is linked statically on macOS. The Windows build uses [Cosmopolitan](https://github.com/jart/cosmopolitan).
+- **macOS / Windows:** mtools operates on FAT *image files* (and, on Linux, block devices). The Windows build uses [Cosmopolitan](https://github.com/jart/cosmopolitan).
 - **Tests:** mtools ships no automated self-tests (`make check` prints "No self tests included"), so there is no native suite to wire; the release smoke test runs an applet's `--version`.
