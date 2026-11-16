@@ -141,8 +141,10 @@
             done
           '';
         }));
-      # Windows via cosmocc (POSIX layer for file I/O + termios + iconv), same
-      # fold. See ./cosmo.nix.
+      # Windows via cosmocc, not mingw. Upstream's mingw recipe builds, but
+      # without iconv (charsetConv.c then needs langinfo.h, which mingw lacks)
+      # and over the ANSI file APIs: on Windows 10 it extracted `ação.txt` as
+      # `a__o.txt` and `日本語.txt` as `___.txt`; cosmo gets both right.
       windowsBuild = import ./cosmo.nix { inherit unpins-lib spec patchedBase; };
     };
 }

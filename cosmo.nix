@@ -1,8 +1,8 @@
 # mtools via cosmoStaticCross for Windows-x86_64, folded into one APE with the
 # cpp-rename recipe (lib.cppRenameMulticall, isCosmo path). Same fold as the
 # native/darwin builds — mtools' own argv[0] dispatch routes the m* aliases,
-# mkmanifest is the second applet. cosmocc supplies the POSIX layer mtools
-# needs (file I/O, termios, iconv).
+# mkmanifest is the second applet. cosmo rather than mingw for iconv and
+# Unicode file names (measured; see the note on windowsBuild in flake.nix).
 
 { unpins-lib, spec, patchedBase }:
 pkgs:
