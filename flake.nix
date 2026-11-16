@@ -13,7 +13,7 @@
   # m* names as symlinks to it. The ONE separate program is `mkmanifest` (its
   # own main, sharing misc.o/missFuncs.o/patchlevel.o with mtools).
   #
-  # Linux: build via the unpin-llvm engine + emit a bitcode multicall module.
+  # Linux + macOS: build via the unpin-llvm engine + emit a bitcode multicall module.
   # The engine compiles plain pkgsStatic.mtools to bitcode and the standalone
   # self-folds the two real linked programs (`mtools`, with the m* names as
   # argv[0] aliases, and `mkmanifest`) into one `mtools` binary. No cpp-rename
@@ -94,8 +94,7 @@
       name = "mtools";
       binName = "mtools";
       # mtools is portable C (FAT image I/O over plain files); macOS builds and
-      # runs. charsetConv.c uses iconv — handled centrally by mkStandaloneFlake's
-      # withDarwinIconv (the build flows through `stripped`). NOT linuxOnly.
+      # runs. charsetConv.c's iconv on darwin is resolved by nix-lib. NOT linuxOnly.
       # Smoke: unlike the other multicalls, mtools' canonical name IS an applet,
       # so argv[0]-based dispatch matters. CI's Windows smoke runs the binary
       # renamed to `smoke.exe`, so argv[0] is neither "mtools" nor an applet, and
@@ -105,7 +104,7 @@
       # prints "<name> (GNU mtools) <ver>" and exits 0 before reading any config.
       smoke = [ "--unpin-program=mtools" "--version" ];
       smokePattern = "GNU mtools";
-      # Linux engine path: real linked programs are `mtools` (carrying all the
+      # Engine path: real linked programs are `mtools` (carrying all the
       # m* names as argv[0] aliases — mtools' own main dispatches on basename)
       # and `mkmanifest` (its own main). `mtools` is itself a program, so a bare
       # invocation runs it.
