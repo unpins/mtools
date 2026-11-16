@@ -54,6 +54,8 @@ The [Releases](https://github.com/unpins/mtools/releases) page has standalone bi
 ## Build notes
 
 - **Platforms:** Linux (x86_64, i686, ppc64le, riscv64, aarch64, armv7l), macOS (x86_64, aarch64), Windows (x86_64).
-- **Not shipped:** upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …) are dropped under the single-binary policy, and the X11 `floppyd` daemon isn't built (no X11 in a static build), so its man page is excluded too.
-- **macOS / Windows:** mtools operates on FAT *image files* (and, on Linux, block devices). The Windows build uses [Cosmopolitan](https://github.com/jart/cosmopolitan).
-- **Tests:** mtools ships no automated self-tests (`make check` prints "No self tests included"), so there is no native suite to wire; the release smoke test runs an applet's `--version`.
+- **Windows:** built with [Cosmopolitan](https://github.com/jart/cosmopolitan), not mingw: the mingw build has no iconv, so non-ASCII file names come out mangled (`ação.txt` is extracted as `a__o.txt`).
+- **Image files and devices:** on macOS and Windows mtools works on FAT *image files*; Linux also reaches block devices.
+- **Configuration:** `-i <image>` needs none. Otherwise mtools reads `/etc/mtools.conf`, `~/.mtoolsrc` or the file `MTOOLSRC` names; on Windows those are `C:\etc\mtools.conf` and `%USERPROFILE%\.mtoolsrc`. The file needs LF line endings: a CRLF line is a syntax error.
+- **Not included:** upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …; a single binary carries no scripts); the X11 `floppyd` daemon (off in nixpkgs).
+- **Tests:** mtools ships no test suite.
