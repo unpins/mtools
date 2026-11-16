@@ -13,18 +13,11 @@
   # m* names as symlinks to it. The ONE separate program is `mkmanifest` (its
   # own main, sharing misc.o/missFuncs.o/patchlevel.o with mtools).
   #
-  # Linux + macOS: build via the unpin-llvm engine + emit a bitcode multicall module.
-  # The engine compiles plain pkgsStatic.mtools to bitcode and the standalone
-  # self-folds the two real linked programs (`mtools`, with the m* names as
-  # argv[0] aliases, and `mkmanifest`) into one `mtools` binary. No cpp-rename
-  # fold and no patchedBase needed: the chain-LTO link namespaces the shared
-  # objects, and the m* dispatch rides on mtools' own basename handling.
-  #
-  # Windows (cosmo): keep the cpp-rename fold (lib.cppRenameMulticall +
-  # ./cosmo.nix) — mtools stays primary, mkmanifest becomes a second
-  # applet, and the duplicated misc/missFuncs/patchlevel objects are namespaced
-  # apart so the two mains can't collide. (darwin used to be on this path too;
-  # it is not any more — see the note on the `build` attribute below.) Upstream's shell helpers (amuFormat.sh,
+  # Every target builds via the unpin-llvm engine + a bitcode multicall module:
+  # the standalone self-folds the two real linked programs (`mtools`, with the
+  # m* names as argv[0] aliases, and `mkmanifest`) into one binary. The
+  # chain-LTO link namespaces the shared objects, and the m* dispatch rides on
+  # mtools' own basename handling. Upstream's shell helpers (amuFormat.sh,
   # mcheck, mcomp, mxtar, tgz, uz, lz) are dropped — single binary, same policy
   # as gzip's z* scripts.
   outputs = { self, unpins-lib }:
@@ -33,61 +26,29 @@
       # mtools reads SYSCONFDIR/mtools.conf at run time, and with
       # --sysconfdir=$out/etc (the nixpkgs default) that bakes a store path the
       # base does not even create -- so the shipped binary looks for its config
-      # in a directory that exists nowhere, and Nix counts the path as a runtime
-      # reference (a hard one on the cosmo fold, invisible on the engine path
-      # only because the base is outside that drv's input closure). /etc is
-      # where every distro puts mtools.conf and where a user would look.
+      # in a directory that exists nowhere. /etc is where every distro puts
+      # mtools.conf and where a user would look.
       # Nothing is installed there: upstream ships no default config.
       atEtc = drv: drv.overrideAttrs (o: {
         configureFlags = (o.configureFlags or [ ]) ++ [ "--sysconfdir=/etc" ];
       });
-      patchedBase = drv: atEtc (drv.overrideAttrs (o: {
-        patches = (o.patches or [ ]) ++ [ ./patches/cosmo-keep-got-signal-rename.patch ];
-      }));
-      # The full mtools object set (Makefile.in OBJS_MTOOLS): @XDF_IO_OBJ@ is
-      # always xdf_io.o; @FLOPPYD_IO_OBJ@ is empty (no X11 in a static build).
-      mtoolsObjs = [
-        "buffer.o" "charsetConv.o" "codepages.o" "config.o" "copyfile.o"
-        "device.o" "devices.o" "dirCache.o" "directory.o" "direntry.o"
-        "dos2unix.o" "expand.o" "fat.o" "fat_free.o" "file.o" "file_name.o"
-        "force_io.o" "hash.o" "init.o" "lba.o" "llong.o" "lockdev.o" "match.o"
-        "mainloop.o" "mattrib.o" "mbadblocks.o" "mcat.o" "mcd.o" "mcopy.o"
-        "mdel.o" "mdir.o" "mdoctorfat.o" "mdu.o" "mformat.o" "minfo.o" "misc.o"
-        "missFuncs.o" "mk_direntry.o" "mlabel.o" "mmd.o" "mmount.o" "mmove.o"
-        "mpartition.o" "mshortname.o" "mshowfat.o" "mzip.o" "mtools.o"
-        "offset.o" "old_dos.o" "open_image.o" "patchlevel.o" "partition.o"
-        "plain_io.o" "precmd.o" "privileges.o" "remap.o" "scsi_io.o" "scsi.o"
-        "signal.o" "stream.o" "streamcache.o" "swap.o" "unix2dos.o"
-        "unixdir.o" "tty.o" "vfat.o" "strtonum.o" "xdf_io.o"
-      ];
+      # The X11 floppy daemon isn't built (no X11 in a static build), but its
+      # man pages are installed and withMan would embed them.
+      noFloppydMan = drv: drv.overrideAttrs (o: {
+        postInstall = (o.postInstall or "") + ''
+          for out in $outputs; do
+            rm -f "''${!out}"/share/man/man1/floppyd*.1*
+          done
+        '';
+      });
       # The m* command names (Makefile.in LINKS) — every one an argv[0] alias
-      # of the primary `mtools`, whose internal dispatch reads argv[0].
+      # of `mtools`, whose internal dispatch reads argv[0].
       mLinks = [
         "mattrib" "mcat" "mcd" "mcopy" "mdel" "mdeltree" "mdir" "mdoctorfat"
         "mdu" "mformat" "minfo" "mlabel" "mmd" "mmount" "mmove" "mpartition"
         "mrd" "mren" "mtype" "mtoolstest" "mshortname" "mshowfat" "mbadblocks"
         "mzip"
       ];
-      spec = {
-        primary = "mtools";
-        # Single top-level Makefile; both programs build in ".".
-        makeSubdir = ".";
-        # mtools' final link uses $(ALLLIBS); the mk already appends $(LIBS),
-        # so passing $(ALLLIBS) here covers MACHDEPLIBS/SHLIB/X_EXTRA_LIBS too.
-        linkExtra = "$(ALLLIBS)";
-        programs = [
-          { name = "mtools"; objs = mtoolsObjs; }
-          { name = "mkmanifest"; objs = [ "missFuncs.o" "mkmanifest.o" "misc.o" "patchlevel.o" ]; }
-        ];
-        aliases = map (n: { name = n; target = "mtools"; }) mLinks;
-        extraInstall = ''
-          mkdir -p "$out/share/man/man1" "$out/share/man/man5"
-          for m in mtools mkmanifest ${builtins.concatStringsSep " " mLinks}; do
-            if [ -f "$m.1" ]; then install -m644 "$m.1" "$out/share/man/man1/$m.1"; fi
-          done
-          if [ -f mtools.5 ]; then install -m644 mtools.5 "$out/share/man/man5/mtools.5"; fi
-        '';
-      };
     in
     lib.mkStandaloneFlake {
       inherit self;
@@ -114,36 +75,24 @@
           { name = "mtools"; aliases = mLinks; }
           { name = "mkmanifest"; }
         ];
-        # What the windows fold below dispatches, from the same `spec` that
-        # builds it — so CI checks the .exe against this instead of against
-        # itself, and a table that drifts stops being a green run.
-        windowsTable = lib.cppRenameTable spec;
+        windows = true;
       };
-      # Engine path for BOTH natives: plain pkgsStatic.mtools; no cpp-rename, no
-      # patchedBase. darwin used to take cppRenameMulticall here, from before the
-      # engine reached darwin — but darwin is an engine host now, so
-      # mkStandaloneFlake folded the cpp-rename output a SECOND time. The first
-      # fold had already renamed `main` to `mkmanifest_main`, so the module fold
-      # found no `main` for that program and bound the applet entry to the
-      # dispatcher's own `main`: invoking mkmanifest re-entered the dispatcher
-      # until the stack died (SIGSEGV, both darwin arches, shipped silently).
-      #
-      # Drop floppyd's man page: the X11 floppy daemon isn't built in a
-      # static/no-X11 build (FLOPPYD_IO_OBJ is empty), so we don't ship it —
-      # withMan would otherwise embed it. The cpp-rename path's curated
-      # `extraInstall` already excludes floppyd; match that here.
-      build = pkgs:
-        atEtc (pkgs.pkgsStatic.mtools.overrideAttrs (o: {
-          postInstall = (o.postInstall or "") + ''
-            for out in $outputs; do
-              rm -f "''${!out}"/share/man/man1/floppyd*.1*
-            done
-          '';
-        }));
-      # Windows via cosmocc, not mingw. Upstream's mingw recipe builds, but
-      # without iconv (charsetConv.c then needs langinfo.h, which mingw lacks)
-      # and over the ANSI file APIs: on Windows 10 it extracted `ação.txt` as
-      # `a__o.txt` and `日本語.txt` as `___.txt`; cosmo gets both right.
-      windowsBuild = import ./cosmo.nix { inherit unpins-lib spec patchedBase; };
+      build = pkgs: atEtc (noFloppydMan pkgs.pkgsStatic.mtools);
+      # Windows: upstream's mingw recipe, with iconv and a UTF-8 process code
+      # page. Without them, Windows 10 extracted `ação.txt` as `a__o.txt` and
+      # `日本語.txt` as `___.txt`; the patches say what each fixes.
+      windowsBuild = pkgs:
+        let mp = lib.mingwStaticCross pkgs; in
+        atEtc (noFloppydMan (mp.mtools.overrideAttrs (o: {
+          patches = (o.patches or [ ]) ++ [
+            ./patches/mingw-codeset.patch
+            ./patches/mingw-utf8-manifest.patch
+            ./patches/mingw-ucrt-case.patch
+            ./patches/mingw-iconv-eilseq.patch
+            ./patches/mingw-home-userprofile.patch
+          ];
+          buildInputs = (o.buildInputs or [ ]) ++ [ mp.libiconv ];
+          makeFlags = (o.makeFlags or [ ]) ++ [ "WINDRES=${mp.stdenv.cc.targetPrefix}windres" ];
+        })));
     };
 }

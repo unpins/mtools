@@ -1,0 +1,36 @@
+Embed a manifest with UTF-8 as the process code page (Windows 10 1903+):
+mtools reaches argv and file names through the ANSI APIs, which otherwise
+mangle anything outside the system code page.
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -144,8 +144,11 @@
+ %.o: %.c
+ 	$(CC) $(CFLAGS) -c $<
+ 
+-mtools$(EXEEXT): $(OBJS_MTOOLS)
+-	$(LINK) $(OBJS_MTOOLS) -o $@ $(ALLLIBS)
++mtools-rsrc.o: $(srcdir)/mtools.rc $(srcdir)/mtools.manifest
++	$(WINDRES) -O coff -I $(srcdir) -i $(srcdir)/mtools.rc -o $@
++
++mtools$(EXEEXT): $(OBJS_MTOOLS) mtools-rsrc.o
++	$(LINK) $(OBJS_MTOOLS) mtools-rsrc.o -o $@ $(ALLLIBS)
+ 
+ mkmanifest$(EXEEXT): $(OBJS_MKMANIFEST)
+ 	$(LINK) $(OBJS_MKMANIFEST) -o $@ $(ALLLIBS)
+--- a/mtools.rc
++++ b/mtools.rc
+@@ -0,0 +1,2 @@
++/* 1 = CREATEPROCESS_MANIFEST_RESOURCE_ID, 24 = RT_MANIFEST */
++1 24 "mtools.manifest"
+--- a/mtools.manifest
++++ b/mtools.manifest
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
++<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
++	<application xmlns="urn:schemas-microsoft-com:asm.v3">
++		<windowsSettings>
++			<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
++		</windowsSettings>
++	</application>
++</assembly>

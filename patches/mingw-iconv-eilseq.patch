@@ -1,0 +1,16 @@
+Substitute '_' for a character the DOS code page can't hold. The loop broke
+on exactly that error (EILSEQ), which glibc and cosmo never reach because
+their //TRANSLIT writes '?' instead; GNU libiconv reports EILSEQ, and a name
+like 日本語.txt got an empty short name (~1).
+
+--- a/charsetConv.c
++++ b/charsetConv.c
+@@ -201,7 +201,7 @@
+ 	while(in_len > 0 && out_len > 0) {
+ 		r=mt_iconv(conv, (const char**)&wchar,
+ 			   &in_len, &dptr, &out_len);
+-		if(r == (size_t) -1 || errno != EILSEQ) {
++		if(r != (size_t) -1 || errno != EILSEQ) {
+ 			/* everything transformed, or error that is _not_ a bad
+ 			 * character */
+ 			break;

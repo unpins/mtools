@@ -1,0 +1,65 @@
+mingw has no langinfo.h: take the native charset from the process ANSI code
+page, which the UTF-8 manifest (mingw-utf8-manifest.patch) makes UTF-8, and
+match LC_CTYPE to it, so mbrtowc and towupper read UTF-8 too.
+
+--- a/charsetConv.c
++++ b/charsetConv.c
+@@ -345,7 +345,23 @@
+ 
+ #ifdef HAVE_ICONV_H
+ 
++#ifdef _WIN32
++/* No langinfo.h on mingw: the process ANSI code page is the native charset. */
++#include <stdio.h>
++unsigned int __stdcall GetACP(void);
++static char *mt_codeset(void)
++{
++	static char name[16];
++	unsigned int cp = GetACP();
++	if(cp == 65001)
++		return "UTF-8";
++	snprintf(name, sizeof(name), "CP%u", cp);
++	return name;
++}
++#else
+ #include <langinfo.h>
++#define mt_codeset() nl_langinfo(CODESET)
++#endif
+ 
+ static iconv_t to_native = 0;
+ 
+@@ -355,7 +371,7 @@
+ 	size_t len;
+ 	if(to_native != 0)
+ 		return;
+-	li = nl_langinfo(CODESET);
++	li = mt_codeset();
+ 	len = strlen(li) + 11;
+ 	if(getWcharCp() == NULL)
+ 		exit(1);
+--- a/mtools.c
++++ b/mtools.c
+@@ -52,6 +52,10 @@
+ };
+ #define NDISPATCH (sizeof dispatch / sizeof dispatch[0])
+ 
++#ifdef _WIN32
++unsigned int __stdcall GetACP(void);
++#endif
++
+ int main(int argc,char **argv)
+ {
+ 	unsigned int i;
+@@ -63,6 +67,12 @@
+ 	if(locale == NULL || !strcmp(locale, "C"))
+ 		setlocale(LC_ALL, "en_US");
+ #endif
++#ifdef _WIN32
++	/* "" is the user's legacy locale even when the manifest makes the
++	   process code page UTF-8; take a UTF-8 LC_CTYPE to match it. */
++	if(GetACP() == 65001)
++		setlocale(LC_CTYPE, ".UTF-8");
++#endif
+ 
+ 	init_privs();
+ #ifdef __EMX__

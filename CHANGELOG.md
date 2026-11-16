@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: built with mingw instead of Cosmopolitan. Non-ASCII file names
+  round-trip both ways, including ones outside the system code page
+  (Windows 10 version 1903 or later); `mtools.conf` may use CRLF line
+  endings; `~/.mtoolsrc` is found in `%USERPROFILE%` when `HOME` is unset.
+
 ## [4.0.49-1] - 2026-09-26
 
 Initial release — `mtools` 4.0.49 as a single self-contained binary, built

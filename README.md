@@ -54,8 +54,8 @@ The [Releases](https://github.com/unpins/mtools/releases) page has standalone bi
 ## Build notes
 
 - **Platforms:** Linux (x86_64, i686, ppc64le, riscv64, aarch64, armv7l), macOS (x86_64, aarch64), Windows (x86_64).
-- **Windows:** built with [Cosmopolitan](https://github.com/jart/cosmopolitan), not mingw: the mingw build has no iconv, so non-ASCII file names come out mangled (`ação.txt` is extracted as `a__o.txt`).
+- **Windows:** file names outside the system code page (`日本語.txt` on a Western system) need Windows 10 version 1903 or later, where the binary runs with UTF-8 as its code page.
 - **Image files and devices:** on macOS and Windows mtools works on FAT *image files*; Linux also reaches block devices.
-- **Configuration:** `-i <image>` needs none. Otherwise mtools reads `/etc/mtools.conf`, `~/.mtoolsrc` or the file `MTOOLSRC` names; on Windows those are `C:\etc\mtools.conf` and `%USERPROFILE%\.mtoolsrc`. The file needs LF line endings: a CRLF line is a syntax error.
+- **Configuration:** `-i <image>` needs none. Otherwise mtools reads `/etc/mtools.conf`, `~/.mtoolsrc` or the file `MTOOLSRC` names; on Windows those are `\etc\mtools.conf` on the current drive and `%USERPROFILE%\.mtoolsrc` (`%HOME%` when set). On Linux and macOS the file needs LF line endings: a CRLF line is a syntax error.
 - **Not included:** upstream's shell helper scripts (`amuFormat.sh`, `mcheck`, `mxtar`, …; a single binary carries no scripts); the X11 `floppyd` daemon (off in nixpkgs).
 - **Tests:** mtools ships no test suite.

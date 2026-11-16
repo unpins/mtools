@@ -1,0 +1,32 @@
+The UCRT's towupper/towlower map only ASCII in a UTF-8 locale (measured on
+Windows 10: towupper(U+00F3) returns U+00F3), so short names kept lowercase
+letters and case-insensitive matching missed accented ones. Map through
+LCMapStringW instead.
+
+--- a/sysincludes.h
++++ b/sysincludes.h
+@@ -380,6 +380,24 @@
+ # define iswcntrl(x) iscntrl(x)
+ #endif
+ 
++#if defined(_WIN32) && defined(HAVE_WCHAR_H)
++/* The UCRT's towupper/towlower map only ASCII in a UTF-8 locale, which
++   mingw-codeset.patch selects; ask Windows for the case mapping instead. */
++int __stdcall LCMapStringW(unsigned long, unsigned long, const wchar_t *, int,
++			   wchar_t *, int);
++static inline wint_t mt_towcase(wint_t c, unsigned long how)
++{
++	wchar_t in = (wchar_t) c, out;
++	if(LCMapStringW(0x7f /* LOCALE_INVARIANT */, how, &in, 1, &out, 1) != 1)
++		return c;
++	return (wint_t) out;
++}
++# undef towupper
++# undef towlower
++# define towupper(c) mt_towcase((c), 0x200 /* LCMAP_UPPERCASE */)
++# define towlower(c) mt_towcase((c), 0x100 /* LCMAP_LOWERCASE */)
++#endif
++
+ #ifdef HAVE_LOCALE_H
+ # include <locale.h>
+ #endif

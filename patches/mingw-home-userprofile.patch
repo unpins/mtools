@@ -1,0 +1,15 @@
+Find ~/.mtoolsrc in %USERPROFILE% when HOME is unset, as it is under cmd.exe.
+
+--- a/misc.c
++++ b/misc.c
+@@ -62,7 +62,9 @@
+ 		return pw->pw_dir;
+ 	return 0;
+ #else
+-	return getenv("HOME");
++	/* cmd.exe sets no HOME: fall back to the profile directory. */
++	char *homedir = getenv("HOME");
++	return homedir ? homedir : getenv("USERPROFILE");
+ #endif
+ }
+ 
