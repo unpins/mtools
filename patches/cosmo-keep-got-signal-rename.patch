@@ -1,0 +1,19 @@
+Keep the cpp-rename of got_signal in signal.c (cosmo multicall fold).
+
+signal.c does `#undef got_signal` to neutralise a dead debug macro in
+mtools.h, but that also cancels the fold's `#define got_signal
+mtools__got_signal`, so signal.o would define the plain symbol while
+copyfile/fat/mainloop reference the renamed one. got_signal is
+mtools-only, so keeping the rename collides with nothing.
+
+--- a/signal.c
++++ b/signal.c
+@@ -18,7 +18,7 @@
+ #include "sysincludes.h"
+ #include "mtools.h"
+ 
+-#undef got_signal
++/* unpin: keep cpp-rename of got_signal */
+ 
+ int got_signal = 0;
+ 

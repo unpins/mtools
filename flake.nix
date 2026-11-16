@@ -41,17 +41,8 @@
       atEtc = drv: drv.overrideAttrs (o: {
         configureFlags = (o.configureFlags or [ ]) ++ [ "--sysconfdir=/etc" ];
       });
-      # signal.c does `#undef got_signal` to neutralise a (dead, commented-out)
-      # debug macro in mtools.h — but that also cancels the cpp-rename header's
-      # `#define got_signal mtools__got_signal`, so signal.o would define the
-      # plain symbol while copyfile/fat/mainloop reference the renamed one
-      # (undefined). Drop the `#undef` so the rename applies in signal.c too;
-      # got_signal is mtools-only, no cross-program collision.
       patchedBase = drv: atEtc (drv.overrideAttrs (o: {
-        postPatch = (o.postPatch or "") + ''
-          substituteInPlace signal.c \
-            --replace-fail '#undef got_signal' '/* unpin: keep cpp-rename of got_signal */'
-        '';
+        patches = (o.patches or [ ]) ++ [ ./patches/cosmo-keep-got-signal-rename.patch ];
       }));
       # The full mtools object set (Makefile.in OBJS_MTOOLS): @XDF_IO_OBJ@ is
       # always xdf_io.o; @FLOPPYD_IO_OBJ@ is empty (no X11 in a static build).
