@@ -1,0 +1,18 @@
+Undefine cosmocc's `privileged` macro after the system headers.
+
+cosmocc defines a lowercase `privileged` function-attribute macro
+(`__section__(".privileged")` + no-instrument), which clashes with
+mtools' `SimpleFile_t.privileged` struct field and locals (config.c,
+plain_io.c, scsi_io.c). sysincludes.h is the common header every affected
+file includes after the system headers, so mtools' identifier wins there.
+mtools needs no code-section attribute.
+
+--- a/sysincludes.h
++++ b/sysincludes.h
+@@ -742,3 +742,6 @@
+ #endif
+ 
+ #endif
++#ifdef __COSMOPOLITAN__
++#undef privileged   /* cosmo attribute macro vs mtools struct field */
++#endif
